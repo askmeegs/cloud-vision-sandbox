@@ -17,3 +17,13 @@ Running locally:
 export GOOGLE_APPLICATION_CREDENTIALS="/Users/mokeefe/dev/cloud-vision-sandbox/src/main/resources/static/sa-key.json"
 ./mvnw spring-boot:run
 ```
+
+
+Building + pushing container image to AR: 
+```
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+export REPO="us-central1-docker.pkg.dev/mokeefe-test-4/visiondemo/image-identifier"
+export TAG="v0.0.2"
+docker build -t $REPO:$TAG .
+docker push $REPO:$TAG
+```

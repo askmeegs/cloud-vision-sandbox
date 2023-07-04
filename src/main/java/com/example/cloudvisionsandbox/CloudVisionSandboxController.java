@@ -9,7 +9,6 @@ import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.protobuf.ByteString;
-import com.mongodb.WriteResult;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -42,7 +41,7 @@ public class CloudVisionSandboxController {
 		try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
 
 			// The path to the image file to annotate
-			String fileName = "src/main/resources/static/wakeupcat.jpg";
+			String fileName = "/opt/app/wakeupcat.jpg";
 
 			// Reads the image file into memory
 			Path path = Paths.get(fileName);
