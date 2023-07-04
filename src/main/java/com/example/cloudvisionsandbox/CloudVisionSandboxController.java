@@ -9,21 +9,35 @@ import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.protobuf.ByteString;
+import com.mongodb.WriteResult;
+
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.google.api.core.ApiFuture;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.DocumentReference;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.FirestoreOptions;
 
 @RestController
 public class CloudVisionSandboxController {
 
 	@GetMapping("/")
 	public VisionResponse visionResp() {
+		// First, identify the image
 		List<AnnotateImageResponse> responses = new ArrayList<>();
 		try (ImageAnnotatorClient vision = ImageAnnotatorClient.create()) {
 
@@ -64,6 +78,26 @@ public class CloudVisionSandboxController {
 			return new VisionResponse("Error: " + e.getMessage());
 		}
 
+		// Then write a timestamp and the annotations to Cloud Firestore
+		try {
+			FirestoreOptions firestoreOptions = FirestoreOptions.getDefaultInstance().toBuilder()
+					.setProjectId("mokeefe-test-4")
+					.setCredentials(GoogleCredentials.getApplicationDefault())
+					.build();
+			Firestore db = firestoreOptions.getService();
+			Map<String, Object> docData = new HashMap<>();
+
+			Map<String, Object> data = new HashMap<>();
+			data.put("timestamp", new java.util.Date());
+			data.put("annotations", responses.toString());
+
+			ApiFuture<DocumentReference> addedDocRef = db.collection("visionresp").add(data);
+			System.out.println("✅ Firestore: added document with ID: " + addedDocRef.get().getId());
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new VisionResponse("Error: " + e.getMessage());
+		}
 		return new VisionResponse(responses.toString());
 	}
 }
