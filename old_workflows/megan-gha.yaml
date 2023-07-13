@@ -1,0 +1,70 @@
+name: CurationAPI - GHA - Build container and deploy to Cloud Run 
+
+on:
+  push:
+    branches:
+      - YOUR_BRANCH_NAME
+
+env:
+  PROJECT_ID: "YOUR_GCP_PROJECT"
+  GAR_LOCATION: "us-central1"
+  REPOSITORY: "ARTIFACT_REPO_NAME"
+  SERVICE: "CLOUD_RUN_SERVICE_NAME"
+  REGION: "us-central1"
+
+jobs:
+  deploy:
+    # Get source code 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+    # DO FIRST - CREATE A SERVICE ACCOUNT JSON KEY IN GITHUB REPO - ACTIONS SECRETS
+    # TODO - This uses a service account Switch to OIDC 
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+
+      # Authenticate to GCP artifact registry 
+      - name: Docker Auth
+        id: docker-auth
+        uses: 'docker/login-action@v1'
+        with:
+          registry: ${{ env.GAR_LOCATION }}-docker.pkg.dev
+          username: _json_key
+          password: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Build and Push Container
+        run: |-
+          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" ./
+          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}"
+
+      # TODO - if you need custom memory / CPU, may need to use a custom metadata file 
+      # https://github.com/google-github-actions/deploy-cloudrun#custom-metadata-yaml
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          region: ${{ env.REGION }}
+          metadata: metadata.yaml
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          # NOTE: If using a pre-built image, update the image name here
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+          # NOTE: You can also set env variables here:
+          #  env_vars: |
+          #  NODE_ENV=production
+          #  TOKEN_EXPIRE=6400
+
+
+      # show cloud run service URL 
+      - name: Show Output
+        run: echo ${{ steps.deploy.outputs.url }}

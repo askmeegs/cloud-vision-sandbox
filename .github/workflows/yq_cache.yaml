@@ -1,0 +1,28 @@
+name: yq TAG and maven dep. cache
+
+on:
+  push:
+    branches:
+      - main
+
+# env:
+#   PROJECT_ID: "YOUR_GCP_PROJECT"
+#   GAR_LOCATION: "us-central1"
+#   REPOSITORY: "ARTIFACT_REPO_NAME"
+#   SERVICE: "CLOUD_RUN_SERVICE_NAME"
+#   REGION: "us-central1"
+
+jobs:
+  deploy:
+    # Get source code 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Build with Maven using cache
+        run: mvn -B package --file pom.xml
