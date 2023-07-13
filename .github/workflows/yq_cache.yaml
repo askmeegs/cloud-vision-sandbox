@@ -26,3 +26,7 @@ jobs:
           cache: 'maven'
       - name: Build with Maven using cache test
         run: mvn -B package --file pom.xml
+      - name: Hydrate image tag in Cloud Run metadata.yml 
+        uses: mikefarah/yq@master
+        with:
+          cmd: echo $GITHUB_SHA && yq e -i '.spec.template.spec.containers[0].image = "us-central1-docker.pkg.dev/my-project/my-repo/my-image:" + env(GITHUB_SHA)' metadata.yaml

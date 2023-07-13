@@ -7,7 +7,7 @@ spec:
     spec:
       containerConcurrency: 20
       containers:
-      - image: "us-central1-docker.pkg.dev/my-project/my-repo/my-image:TAG"
+      - image: "us-central1-docker.pkg.dev/my-project/my-repo/my-image:INSERT_TAG"
         ports:
         - containerPort: 8080
         resources:
