@@ -1,0 +1,10 @@
+bases:
+- ../base
+resources:
+- metadata_template.yaml
+namespace: my-namespace
+
+images:
+- name: the-my-app
+- newName: my.docker.registry.com/my-project/my-app
+  newTag: test

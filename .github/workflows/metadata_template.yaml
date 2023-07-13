@@ -1,18 +1,13 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: CLOUD_RUN_SERVICE_NAME
+  name: my-awesome-service
 spec:
   template:
-    # metadata:
-    #   labels:
-    #     test_label: test_value
-    #   annotations:
-    #     run.googleapis.com/cloudsql-instances: 'test-project:us-central1:my-test-instance'
     spec:
       containerConcurrency: 20
       containers:
-      - image: "us-central1-docker.pkg.dev/REPO_NAME/IMAGE_NAME:TAG"
+      - image: "us-central1-docker.pkg.dev/my-project/my-repo/my-image:TAG"
         ports:
         - containerPort: 8080
         resources:
