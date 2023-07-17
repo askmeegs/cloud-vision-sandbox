@@ -9,8 +9,10 @@ import com.google.cloud.vision.v1.Feature.Type;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.protobuf.ByteString;
+import java.util.UUID;
 
 import io.grpc.Context.Storage;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -58,24 +60,120 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
 
+import com.google.cloud.aiplatform.v1beta1.EndpointName;
+import com.google.cloud.aiplatform.v1beta1.PredictResponse;
+import com.google.cloud.aiplatform.v1beta1.PredictionServiceClient;
+import com.google.cloud.aiplatform.v1beta1.PredictionServiceSettings;
+import com.google.protobuf.Value;
+import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 @RestController
 public class CloudVisionSandboxController {
+	@GetMapping("/imagenclient")
+	public VisionResponse imagenClientResp() {
+		try {
+			String instance = "{ \"prompt\": " + "\"rocky road cookies\"}";
+			String parameters = "{\n"
+					+ " \"temperature\": 0.2,\n"
+					+ " \"maxOutputTokens\": 1024,\n"
+					+ " \"topP\": 0.95,\n"
+					+ " \"topK\": 40\n"
+					+ "}";
+			// String parameters = "{}";
+			String project = "mokeefe-test-4";
+			String location = "us-central1";
+			String publisher = "google";
+			String model = "imagegeneration";
+
+			// String rawEndpoint =
+			// "https://us-central1-aiplatform.googleapis.com/v1/projects/mokeefe-test-4/locations/us-central1/publishers/google/models/imagegeneration:predict";
+			String endpoint = String.format("%s-aiplatform.googleapis.com:443", location);
+			// create predictionServiceSettings and set retry settings to 60 seconds
+			PredictionServiceSettings.Builder predictionServiceSettingsBuilder = PredictionServiceSettings.newBuilder();
+			predictionServiceSettingsBuilder
+					.predictSettings()
+					.setRetrySettings(
+							predictionServiceSettingsBuilder
+									.predictSettings()
+									.getRetrySettings()
+									.toBuilder()
+									.setTotalTimeout(Duration.ofSeconds(30))
+									.build());
+			PredictionServiceSettings predictionServiceSettings = predictionServiceSettingsBuilder.setEndpoint(endpoint)
+					.build();
+
+			// Initialize client that will be used to send requests. This client only needs
+			// to be created
+			// once, and can be reused for multiple requests.
+			PredictionServiceClient predictionServiceClient = PredictionServiceClient.create(predictionServiceSettings);
+			final EndpointName endpointName = EndpointName.ofProjectLocationPublisherModelName(project, location,
+					publisher, model);
+
+			// Initialize client that will be used to send requests. This client only needs
+			// to be created
+			// once, and can be reused for multiple requests.
+			Value.Builder instanceValue = Value.newBuilder();
+			JsonFormat.parser().merge(instance, instanceValue);
+			List<Value> instances = new ArrayList<>();
+			instances.add(instanceValue.build());
+
+			// Use Value.Builder to convert instance to a dynamically typed value that can
+			// be
+			// processed by the service.
+			Value.Builder parameterValueBuilder = Value.newBuilder();
+			JsonFormat.parser().merge(parameters, parameterValueBuilder);
+			Value parameterValue = parameterValueBuilder.build();
+
+			PredictResponse predictResponse = predictionServiceClient.predict(endpointName, instances, parameterValue);
+			// how many predictions in predictResponse?
+			// print length of predictions 
+			System.out.println("🍓 PREDICTIONS LENGTH: " + predictResponse.getPredictionsCount());
+
+
+
+			predictResponse.getPredictionsList().forEach(prediction -> {
+				// increment i 
+				String index = UUID.randomUUID().toString(); 
+				// get first 6 chars of uuid 
+				index = index.substring(0, 6);
+				// print prediction
+				System.out.println("🍓 NEW PREDICTION BELOW");
+				System.out.println(prediction);
+				// get field bytesBase64Encoded string from prediction
+				String bytesBase64Encoded = prediction.getStructValue().getFieldsMap().get("bytesBase64Encoded")
+						.getStringValue();
+				try {
+					base64ToImage(bytesBase64Encoded, "image-" + index + ".png");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return new VisionResponse("imagen client response here");
+	}
+
 	@GetMapping("/imagen")
 	public VisionResponse imagenResp() {
 		try {
 			// To get token info:
 			// curl "https://oauth2.googleapis.com/tokeninfo?access_token=$TOKEN"
 
-			// docker run -p 8080:8080  -v ./imagen.json:/tmp/imagen.json hello:latest 
+			// docker run -p 8080:8080 -v ./imagen.json:/tmp/imagen.json hello:latest
 
 			String accessToken = "placeholder";
 			try {
 				runBashCommand("gcloud auth activate-service-account --key-file=/tmp/imagen.json");
-				accessToken = runBashCommand("gcloud auth print-access-token --impersonate-service-account=imagen@mokeefe-test-4.iam.gserviceaccount.com");
+				accessToken = runBashCommand(
+						"gcloud auth print-access-token --impersonate-service-account=imagen@mokeefe-test-4.iam.gserviceaccount.com");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			// strip trailing and leading whitespace from accesstoken 
+			// strip trailing and leading whitespace from accesstoken
 			accessToken = accessToken.trim();
 			System.out.println("⭐️ accessToken: " + accessToken);
 
@@ -139,10 +237,11 @@ public class CloudVisionSandboxController {
 		}
 		return new VisionResponse("imagen response here");
 	}
+
 	private static String runBashCommand(String cmd) throws IOException, InterruptedException {
 		Runtime runtime = Runtime.getRuntime();
 		Process process = runtime.exec(cmd);
-		// pipe output and return 
+		// pipe output and return
 		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 		StringBuilder builder = new StringBuilder();
 		String line = null;
